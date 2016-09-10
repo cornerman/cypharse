@@ -51,8 +51,6 @@ object CypherChecker {
         errors += s"""found duplicate variables: ${duplicateVars.mkString(", ")}"""
 
       val undefinedVars = part.returnColumns.filterNot(varMap.contains)
-      println(varMap)
-      println(undefinedVars)
       if (undefinedVars.nonEmpty)
         errors += s"""found undefined variables in return: ${undefinedVars.mkString(", ")}"""
 
