@@ -21,6 +21,7 @@ case class BoundNodeVar(variable: Variable, labels: Seq[LabelName]) extends Boun
 object CypherChecker {
   def boundVariablesFromElement(element: PatternElement): Seq[BoundVariable] = element match {
     case NodePattern(Some(variable), labels, properties) => Seq(BoundNodeVar(variable, labels))
+    case NodePattern(None, _, _) => Seq.empty //TODO need to check existence of labels in schema?
     case RelationshipChain(element, relationship, rightNode) => boundVariablesFromElement(element) ++ boundVariablesFromRelationship(relationship) ++ boundVariablesFromElement(rightNode)
   }
 
@@ -28,12 +29,18 @@ object CypherChecker {
     relationship.variable.map(v => BoundRelationVar(v, relationship.types)).toSeq
   }
 
+  def boundVariablesFromPattern(pattern: Pattern) = {
+    val elements = pattern.patternParts.map(_.element)
+    elements.flatMap(boundVariablesFromElement)
+  }
+
   def boundVariablesFromPart(part: QueryPart) = part match {
     case SingleQuery(clauses) =>
       val boundVars = clauses collect {
-        case Match(optional, Pattern(patternParts), hints, where) =>
-          val elements = patternParts.map(_.element)
-          elements.flatMap(boundVariablesFromElement)
+        case Match(optional, pattern, hints, where) => boundVariablesFromPattern(pattern)
+        case Merge(pattern, actions) => boundVariablesFromPattern(pattern)
+        case Create(pattern) => boundVariablesFromPattern(pattern)
+        case CreateUnique(pattern) => boundVariablesFromPattern(pattern)
       }
       boundVars.flatten
   }

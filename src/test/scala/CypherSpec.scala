@@ -5,6 +5,11 @@ import cypharse._
 class CypherSpec extends CompileSpec {
   import scala.reflect.runtime.universe._
 
+  def cypherQuery(query: String): Tree = {
+    //TODO: why :type?
+    q"(cypharse.CypherQuery.apply($query)): cypharse.CypherQuery"
+  }
+
   "only takes literal constant string" >> {
     q"""val x = "match (n) return n"; cypharse.Cypher(x)""" must abort(
       "reflective typecheck has failed: Expected literal string constant, but found x"
@@ -12,16 +17,27 @@ class CypherSpec extends CompileSpec {
   }
 
   "parse node pattern" >> {
-    q"""cypharse.Cypher("match (n:FOO) return n")""" must compile.to(
-      //TODO: why :type?
-      q"""(cypharse.CypherQuery.apply("match (n:FOO) return n")): cypharse.CypherQuery"""
-    )
+    val query = "match (n:FOO) return n"
+    q"cypharse.Cypher($query)" must compile.to(cypherQuery(query))
   }
 
   "parse relation pattern" >> {
-    q"""cypharse.Cypher("match (n:N)-[r:R]->(m:M) return n,r,m")""" must compile.to(
-      //TODO: why :type?
-      q"""(cypharse.CypherQuery.apply("match (n:N)-[r:R]->(m:M) return n,r,m")): cypharse.CypherQuery"""
-    )
+    val query = "match (n:N)-[r:R]->(m:M) return n,r,m"
+    q"cypharse.Cypher($query)" must compile.to(cypherQuery(query))
+  }
+
+  "create node" >> {
+    val query = "create (n:FOO) return n"
+    q"cypharse.Cypher($query)" must compile.to(cypherQuery(query))
+  }
+
+  "create unique node" >> {
+    val query = "create unique (n:FOO) return n"
+    q"cypharse.Cypher($query)" must compile.to(cypherQuery(query))
+  }
+
+  "merge node" >> {
+    val query = "merge (n:FOO) return n"
+    q"cypharse.Cypher($query)" must compile.to(cypherQuery(query))
   }
 }
