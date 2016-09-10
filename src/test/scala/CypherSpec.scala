@@ -19,6 +19,11 @@ class CypherSpec extends CompileSpec {
     q"cypharse.Cypher($query)" must compile.to(cypherQuery(query))
   }
 
+  "match node with params properties" >> {
+    val query = "match (n:FOO {`id`: {params}.id}) return n"
+    q"cypharse.Cypher($query)" must compile.to(cypherQuery(query))
+  }
+
   "match relation" >> {
     val query = "match (n:N)-[r:R]->(m:M) return n,r,m"
     q"cypharse.Cypher($query)" must compile.to(cypherQuery(query))

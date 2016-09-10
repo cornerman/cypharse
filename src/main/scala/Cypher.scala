@@ -16,11 +16,11 @@ class CypherTranslator[C <: Context](val context: C) {
 
   def translate(tree: Tree): Tree = tree match {
     case Literal(Constant(query: String)) => CypherChecker.check(query) match {
-      case QuerySuccess(returnedVars) =>
+      case Right(returnedVars) =>
         // do something...
         val cypher = CypherQuery(query)
         q"$cypher"
-      case QueryFailure(errors) => context.abort(context.enclosingPosition, errors.map(s"ERROR: " + _).mkString("\n"))
+      case Left(errors) => context.abort(context.enclosingPosition, errors.map(s"ERROR: " + _).mkString("\n"))
     }
     case _ => context.abort(context.enclosingPosition, s"Expected literal string constant, but found ${tree}")
   }
