@@ -14,6 +14,12 @@ class CypherSpec extends CompileSpec {
     )
   }
 
+  "cypher string interpolation" >> {
+    q"""import cypharse._; cypher"match (n:FOO) return n"""" must compile.to(
+      containTree(q""""match (n:FOO) return n"""")
+    )
+  }
+
   "match node" >> {
     val query = "match (n:FOO) return n"
     q"cypharse.Cypher($query)" must compile.to(cypherQuery(query))

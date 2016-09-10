@@ -10,19 +10,17 @@ case class CypherQuery(query: String)
 class CypherTranslator[C <: Context](val context: C) {
   import context.universe._
 
-  implicit val lift = Liftable[CypherQuery] { q =>
-    q"_root_.cypharse.CypherQuery(${q.query})"
-  }
-
-  def translate(tree: Tree): Tree = tree match {
+  def translate(tree: Tree): String = tree match {
     case Literal(Constant(query: String)) => CypherChecker.check(query) match {
-      case Right(returnedVars) =>
-        // do something...
-        val cypher = CypherQuery(query)
-        q"$cypher"
+      case Right(_) => query
       case Left(errors) => context.abort(context.enclosingPosition, errors.map(s"ERROR: " + _).mkString("\n"))
     }
     case _ => context.abort(context.enclosingPosition, s"Expected literal string constant, but found ${tree}")
+  }
+
+  def translateFromContext = context.prefix.tree match {
+    case Apply(_, List(Apply(_, part :: Nil))) => translate(part)
+    case _ => context.abort(context.enclosingPosition, s"Expected one string")
   }
 }
 
@@ -31,14 +29,23 @@ object CypherTranslator {
 }
 
 object CypherMacro {
-  def impl(c: Context)(arg: c.Expr[String]): c.Expr[CypherQuery] = {
+
+  def macroImpl(c: Context)(arg: c.Expr[String]): c.Expr[CypherQuery] = {
+    import c.universe._
     val translator = CypherTranslator(c)
-    val tree = translator.translate(arg.tree)
-    c.Expr[CypherQuery](tree)
+    val query = translator.translate(arg.tree)
+    c.Expr[CypherQuery](q"_root_.cypharse.CypherQuery($query)")
+  }
+
+  def stringImpl(c: Context)(args: c.Expr[Any]*): c.Expr[String] = {
+    import c.universe._
+    val translator = CypherTranslator(c)
+    val query = translator.translateFromContext
+    c.Expr[String](q"$query")
   }
 }
 
 @compileTimeOnly("only for compile time expansion")
 object Cypher {
-  def apply(arg: String): CypherQuery = macro CypherMacro.impl
+  def apply(arg: String): CypherQuery = macro CypherMacro.macroImpl
 }

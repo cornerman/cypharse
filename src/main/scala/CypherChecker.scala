@@ -32,7 +32,7 @@ object CypherChecker {
 
   private def boundVariablesFromPart(part: QueryPart) = part match {
     case SingleQuery(clauses) =>
-      val boundVars = clauses collect {
+      val boundVars = clauses map {
         case Match(optional, pattern, hints, where) => boundVariablesFromPattern(pattern)
         case Merge(pattern, actions) => boundVariablesFromPattern(pattern)
         case Create(pattern) => boundVariablesFromPattern(pattern)
