@@ -1,5 +1,4 @@
 import macroni.CompileSpec
-import scala.util.{Try, Success, Failure}
 
 import cypharse._
 
