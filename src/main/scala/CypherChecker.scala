@@ -2,6 +2,7 @@ package cypharse
 
 import org.neo4j.cypher.internal.frontend.v3_0.parser.CypherParser
 import org.neo4j.cypher.internal.frontend.v3_0.ast._
+import org.neo4j.cypher.internal.frontend.v3_0.SemanticState
 
 import scala.util.{Try, Success, Failure}
 import scala.collection.mutable
@@ -9,7 +10,7 @@ import scala.collection.mutable
 trait QueryResult
 
 case class QuerySuccess(boundVariables: Seq[BoundVariable]) extends QueryResult
-case class QueryFailure(errors: List[String]) extends QueryResult
+case class QueryFailure(errors: Seq[String]) extends QueryResult
 
 sealed trait BoundVariable {
   val variable: Variable
@@ -34,6 +35,11 @@ object CypherChecker {
     elements.flatMap(boundVariablesFromElement)
   }
 
+  def semanticCheckPart(part: QueryPart) = {
+    val checkResult = part.semanticCheck(SemanticState.clean)
+    if (checkResult.errors.isEmpty) None else Some(checkResult)
+  }
+
   def boundVariablesFromPart(part: QueryPart) = part match {
     case SingleQuery(clauses) =>
       val boundVars = clauses collect {
@@ -49,22 +55,27 @@ object CypherChecker {
 
   def check(query: String): QueryResult = Try(parser.parse(query)) match {
     case Success(Query(None, part)) =>
-      val boundVars = boundVariablesFromPart(part)
-      val varMap = boundVars.groupBy(_.variable.name)
-      val errors = mutable.ArrayBuffer.empty[String]
+      semanticCheckPart(part) map { res =>
+        QueryFailure(res.errors.map(e => s"${e.msg} (${e.position})"))
+      } getOrElse {
+        val boundVars = boundVariablesFromPart(part)
+        val varMap = boundVars.groupBy(_.variable.name)
+        val errors = mutable.ArrayBuffer.empty[String]
 
-      val duplicateVars = varMap collect { case (name, _::_::_) => name }
-      if (duplicateVars.nonEmpty) //TODO: handle duplicates as additional? matches
-        errors += s"""found duplicate variables: ${duplicateVars.mkString(", ")}"""
+        val duplicateVars = varMap collect { case (name, _::_::_) => name }
+        if (duplicateVars.nonEmpty) //TODO: handle duplicates as additional? matches
+          errors += s"""found duplicate variables: ${duplicateVars.mkString(", ")}"""
 
-      val undefinedVars = part.returnColumns.filterNot(varMap.contains)
-      if (undefinedVars.nonEmpty)
-        errors += s"""found undefined variables in return: ${undefinedVars.mkString(", ")}"""
+        // semantic check already handles this, but maybe we are missing some variables in our collection
+        val undefinedVars = part.returnColumns.filterNot(varMap.contains)
+        if (undefinedVars.nonEmpty)
+          errors += s"""found undefined variables in return: ${undefinedVars.mkString(", ")}"""
 
-      if (errors.isEmpty) {
-        val returnedVars = part.returnColumns.map(r => varMap.apply(r).head)
-        QuerySuccess(returnedVars)
-      } else QueryFailure(errors.toList)
+        if (errors.isEmpty) {
+          val returnedVars = part.returnColumns.map(r => varMap.apply(r).head)
+          QuerySuccess(returnedVars)
+        } else QueryFailure(errors.toList)
+      }
     case Success(res) => QueryFailure(List(s"unexpected parse result: $res"))
     case Failure(e) => QueryFailure(List(s"parse error: ${e.getMessage}"))
   }

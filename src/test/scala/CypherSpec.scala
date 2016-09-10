@@ -1,7 +1,5 @@
 import macroni.CompileSpec
 
-import cypharse._
-
 class CypherSpec extends CompileSpec {
   import scala.reflect.runtime.universe._
 
@@ -16,12 +14,12 @@ class CypherSpec extends CompileSpec {
     )
   }
 
-  "parse node pattern" >> {
+  "match node" >> {
     val query = "match (n:FOO) return n"
     q"cypharse.Cypher($query)" must compile.to(cypherQuery(query))
   }
 
-  "parse relation pattern" >> {
+  "match relation" >> {
     val query = "match (n:N)-[r:R]->(m:M) return n,r,m"
     q"cypharse.Cypher($query)" must compile.to(cypherQuery(query))
   }
@@ -39,5 +37,19 @@ class CypherSpec extends CompileSpec {
   "merge node" >> {
     val query = "merge (n:FOO) return n"
     q"cypharse.Cypher($query)" must compile.to(cypherQuery(query))
+  }
+
+  "detect undefined variable" >> {
+    val query = "match (n) return m"
+    q"cypharse.Cypher($query)" must abort(
+      "reflective typecheck has failed: ERROR: Variable `m` not defined (line 1, column 18 (offset: 17))"
+    )
+  }
+
+  "detect syntax error" >> {
+    val query = "catch (n) return n"
+    q"cypharse.Cypher($query)" must abort(
+      "reflective typecheck has failed: ERROR: parse error: Invalid input 't': expected 'l/L' (line 1, column 3 (offset: 2))"
+    )
   }
 }
