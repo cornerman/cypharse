@@ -8,8 +8,8 @@ object Main extends App {
 
   def printReturns(returnedVars: Seq[BoundVariable]) = {
     val returnedDefs = returnedVars collect {
-      case BoundNodeVar(v, labels) => s"Node (${v.name}): ${labels.map(_.name).mkString}"
-      case BoundRelationVar(v, relTypes) => s"Relation [${v.name}]: ${relTypes.map(_.name).mkString}"
+      case BoundNodeVar(v, labels, properties) => s"Node (${v.name}): ${labels.map(_.name).mkString} {${properties}}"
+      case BoundRelationVar(v, relTypes, properties) => s"Relation [${v.name}]: ${relTypes.map(_.name).mkString} {${properties}}"
     }
     println(s"""RETURNS:\n ${returnedDefs.mkString("\n ")}""")
   }
@@ -21,9 +21,10 @@ object Main extends App {
   }
 
   printQuery("match (n:FOO) return n")
-
   printQuery("match (n:SRC)-[r:REL]->(m:SINK) return n,r,m")
-
   printQuery("match (n:FOO) return m")
   printQuery("match (n:FOO) peter return m")
+  printQuery("match (n:FOO {bla: {stuff}}) return n")
+  printQuery("match (n:FOO {bla: {stuff}.blubb.foo}) return n")
+  printQuery("create (n:FOO {stuff}) return n")
 }

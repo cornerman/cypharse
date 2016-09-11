@@ -9,20 +9,22 @@ import scala.collection.mutable
 
 sealed trait BoundVariable {
   val variable: Variable
+  val properties: Option[Expression]
 }
 
-case class BoundRelationVar(variable: Variable, labels: Seq[RelTypeName]) extends BoundVariable
-case class BoundNodeVar(variable: Variable, labels: Seq[LabelName]) extends BoundVariable
+
+case class BoundRelationVar(variable: Variable, labels: Seq[RelTypeName], properties: Option[Expression] = None) extends BoundVariable
+case class BoundNodeVar(variable: Variable, labels: Seq[LabelName], properties: Option[Expression] = None) extends BoundVariable
 
 object CypherChecker {
   private def boundVariablesFromElement(element: PatternElement): Seq[BoundVariable] = element match {
-    case NodePattern(Some(variable), labels, properties) => Seq(BoundNodeVar(variable, labels))
+    case NodePattern(Some(variable), labels, properties) => Seq(BoundNodeVar(variable, labels, properties))
     case NodePattern(None, _, _) => Seq.empty //TODO need to check existence of labels in schema?
     case RelationshipChain(element, relationship, rightNode) => boundVariablesFromElement(element) ++ boundVariablesFromRelationship(relationship) ++ boundVariablesFromElement(rightNode)
   }
 
   private def boundVariablesFromRelationship(relationship: RelationshipPattern) = {
-    relationship.variable.map(v => BoundRelationVar(v, relationship.types)).toSeq
+    relationship.variable.map(v => BoundRelationVar(v, relationship.types, relationship.properties)).toSeq
   }
 
   private def boundVariablesFromPattern(pattern: Pattern) = {
@@ -37,6 +39,9 @@ object CypherChecker {
         case Merge(pattern, actions) => boundVariablesFromPattern(pattern)
         case Create(pattern) => boundVariablesFromPattern(pattern)
         case CreateUnique(pattern) => boundVariablesFromPattern(pattern)
+        case clause =>
+          println("ignored clause: " + clause)
+          Seq.empty
       }
       boundVars.flatten
   }
